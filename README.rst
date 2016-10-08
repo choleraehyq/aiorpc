@@ -70,8 +70,8 @@ Performance
 
 aiorpc with `uvloop <https://github.com/MagicStack/uvloop>`_ significantly outperforms `ZeroRPC <http://zerorpc.dotcloud.com/>`_ (**6x** faster), which is built using `ZeroMQ <http://zeromq.org/>`_ and `MessagePack <http://msgpack.org/>`_ and slightly underperforms `official MessagePack RPC <https://github.com/msgpack-rpc/msgpack-rpc-python>`_ (**0.7x** slower), which is built using `Facebook's Tornado <http://www.tornadoweb.org/en/stable/>`_ and `MessagePack <http://msgpack.org/>`_.
 
-mprpc
-~~~~~
+aiorpc
+~~~~~~
 
 .. code-block:: bash
 
