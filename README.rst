@@ -1,6 +1,9 @@
 aiorpc
 ======
 
+.. image:: https://badge.fury.io/py/aiorpc.png
+    :target: http://badge.fury.io/py/aiorpc
+
 .. image:: https://travis-ci.org/choleraehyq/aiorpc.png?branch=master
     :target: https://travis-ci.org/choleraehyq/aiorpc
 
@@ -70,8 +73,8 @@ Performance
 
 aiorpc with `uvloop <https://github.com/MagicStack/uvloop>`_ significantly outperforms `ZeroRPC <http://zerorpc.dotcloud.com/>`_ (**6x** faster), which is built using `ZeroMQ <http://zeromq.org/>`_ and `MessagePack <http://msgpack.org/>`_ and slightly underperforms `official MessagePack RPC <https://github.com/msgpack-rpc/msgpack-rpc-python>`_ (**0.7x** slower), which is built using `Facebook's Tornado <http://www.tornadoweb.org/en/stable/>`_ and `MessagePack <http://msgpack.org/>`_.
 
-aiorpc
-~~~~~~
+- aiorpc
+
 
 .. code-block:: bash
 
@@ -79,8 +82,7 @@ aiorpc
     call: 2236 qps
 
 
-Official MesssagePack RPC
-~~~~~~~~~~~~~~~~~~~~~~~~~
+- Official MesssagePack RPC
 
 .. code-block:: bash
 
@@ -88,8 +90,7 @@ Official MesssagePack RPC
     % python benchmarks/benchmark_msgpackrpc.py
     call: 3112 qps
 
-ZeroRPC
-~~~~~~~
+- ZeroRPC
 
 .. code-block:: bash
 
@@ -102,3 +103,4 @@ Documentation
 -------------
 
 Documentation is available at http://aiorpc.readthedocs.org/.
+(Since readthedocs don't support Python 3.5 yet, this page is unavailable now.)
