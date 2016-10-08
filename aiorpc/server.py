@@ -88,21 +88,17 @@ async def serve(reader, writer):
     global _unpack_encoding, _unpack_params
     _logger.debug('enter serve: {}'.format(writer.get_extra_info('peername')))
 
-    conn = Connection(reader, writer)
-    data = None
+    conn = Connection(reader, writer,
+                      msgpack.Unpacker(encoding=_unpack_encoding, **_unpack_params))
     while not conn.is_closed():
+        req = None
         try:
-            _logger.debug('receiving data')
-            data = await conn.recvall(_timeout)
-            _logger.debug('received data: {}'.format(data))
+            req = await conn.recvall(_timeout)
         except asyncio.TimeoutError as te:
             conn.reader.set_exception(te)
         except Exception as e:
             conn.reader.set_exception(e)
             raise e
-        _logger.debug('unpacking data: {}'.format(data))
-        req = msgpack.unpackb(data, encoding=_unpack_encoding, **_unpack_params)
-        _logger.debug('unpacking complete: {}'.format(str(req)))
 
         if type(req) != tuple:
             try:

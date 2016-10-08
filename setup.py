@@ -21,7 +21,6 @@ setup(
         'Natural Language :: English',
         'License :: Do What the Fuck You Want to Public License',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
     ),
     install_requires=[

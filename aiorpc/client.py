@@ -74,7 +74,8 @@ class RPCClient:
         if self._conn is None:
             _logger.debug("connect to {}:{}...".format(self._host, self._port))
             reader, writer = await asyncio.open_connection(self._host, self._port, loop=self._loop)
-            self._conn = Connection(reader, writer)
+            self._conn = Connection(reader, writer,
+                                    msgpack.Unpacker(encoding=self._unpack_encoding, **self._unpack_params))
             _logger.debug("Connection to {}:{} established".format(self._host, self._port))
 
         try:
@@ -87,10 +88,10 @@ class RPCClient:
         except Exception as e:
             raise e
 
-        data = None
+        response = None
         try:
             _logger.debug('receiving result from server')
-            data = await self._conn.recvall(self._timeout)
+            response = await self._conn.recvall(self._timeout)
             _logger.debug('receiving result completed')
         except asyncio.TimeoutError as te:
             _logger.error("Read request to {}:{} timeout".format(self._host, self._port))
@@ -100,9 +101,8 @@ class RPCClient:
             self._conn.reader.set_exception(e)
             raise e
 
-        if data is None:
+        if response is None:
             raise IOError("Connection closed")
-        response = msgpack.unpackb(data, encoding=self._unpack_encoding, **self._unpack_params)
 
         if type(response) != tuple:
             logging.debug('Protocol error, received unexpected data: {}'.format(response))
