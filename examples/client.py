@@ -5,7 +5,7 @@ import uvloop
 
 async def do(cli):
     ret = await client.call('echo', 'message')
-    print("|||||||||fuck {}||||||||\n".format(ret))
+    print("{}\n".format(ret))
 
 loop = uvloop.new_event_loop()
 asyncio.set_event_loop(loop)

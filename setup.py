@@ -6,7 +6,7 @@ setup(
     name='aiorpc',
     version='0.1.0',
     description='A fast RPC library based on asyncio and MessagePack',
-    long_description=open('README.md').read(),
+    long_description=open('README.rst').read(),
     author='Cholerae Hu',
     author_email='choleraehyq@gmail.com',
     url='http://github.com/choleraehyq/aiorpc',
@@ -25,10 +25,10 @@ setup(
     ),
     install_requires=[
         'msgpack-python',
+        'uvloop',
     ],
     tests_require=[
         'nose',
-        'mock',
     ],
     test_suite='nose.collector'
 )

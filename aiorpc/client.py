@@ -2,7 +2,6 @@
 import asyncio
 import msgpack
 import logging
-import io
 
 from aiorpc.connection import Connection
 from aiorpc.log import rootLogger
@@ -20,23 +19,20 @@ class RPCClient:
     Usage:
         >>> from aiorpc.client import RPCClient
         >>> client = RPCClient('127.0.0.1', 6000)
-        >>> print client.call('sum', 1, 2)
-        3
+        >>> import asyncio
+        >>> loop = asyncio.get_event_loop()
+        >>> loop.run_until_complete(client.call('sum', 1, 2))
 
     :param str host: Hostname.
     :param int port: Port number.
     :param int timeout: (optional) Socket timeout.
-    :param bool lazy: (optional) If set to True, the socket connection is not
-        established until you specifically call open()
     :param str pack_encoding: (optional) Character encoding used to pack data
         using Messagepack.
     :param str unpack_encoding: (optional) Character encoding used to unpack
         data using Messagepack.
     :param dict pack_params: (optional) Parameters to pass to Messagepack Packer
     :param dict unpack_params: (optional) Parameters to pass to Messagepack
-    :param tcp_no_delay (optional) If set to True, use TCP_NODELAY.
-    :param keep_alive (optional) If set to True, use socket keep alive.
-        Unpacker
+        Unpacker.
     """
 
     def __init__(self, host, port, *, timeout=3, loop=None,

@@ -19,6 +19,16 @@ _timeout = 1
 
 
 def register(name, f):
+    """Register a function on the RPC server.
+    Usage:
+        >>> def sum(x, y):
+        >>>     return x + y
+        >>> register('sum', sum)
+
+    :param name: The remote name of the function, can be different with the f.__name__.
+    :param f: Function object. Must be a callable object or a coroutine object.
+    :return: None
+    """
     global _methods
     if not hasattr(f, "__call__"):
         raise MethodRegisteredError("{} is not a callable object".format(f.__name__))
@@ -27,7 +37,18 @@ def register(name, f):
     _methods[name] = f
 
 
-def msgpack_init(*args, **kwargs):
+def msgpack_init(**kwargs):
+    """Init parameters of msgpack packer and unpacker.
+    Usage:
+        >>> msgpack_init(pack_encoding='utf-8')
+
+    :param kwargs: See http://pythonhosted.org/msgpack-python/api.html
+            default:
+            pack_encoding='utf-8'
+            unpack_encoding='utf-8'
+            unpack_params=dict(use_list=False)
+    :return: None
+    """
     global _pack_encoding, _pack_params, _unpack_encoding, _unpack_params
     _pack_encoding = kwargs.pop('pack_encoding', 'utf-8')
     _pack_params = kwargs.pop('pack_params', dict())
@@ -37,6 +58,13 @@ def msgpack_init(*args, **kwargs):
 
 
 def set_timeout(timeout):
+    """Set the IO timeout
+    Usage:
+        >>> set_timeout(1)
+
+    :param timeout: Timeout. Seconds.
+    :return: None
+    """
     global _timeout
     _timeout = timeout
 
@@ -85,6 +113,9 @@ def _parse_request(req):
     return (msg_id, method, args)
 
 async def serve(reader, writer):
+    """Serve function.
+    Don't use this outside asyncio.start_server.
+    """
     global _unpack_encoding, _unpack_params
     _logger.debug('enter serve: {}'.format(writer.get_extra_info('peername')))
 
