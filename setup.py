@@ -14,15 +14,15 @@ setup(
     license=open('LICENSE').read(),
     include_package_data=True,
     keywords=['rpc', 'msgpack', 'messagepack', 'msgpackrpc', 'messagepackrpc',
-              'messagepack rpc', 'asyncio'],
-    classifiers=(
+              'asyncio'],
+    classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Natural Language :: English',
         'License :: Do What the Fuck You Want to Public License',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3.5',
-    ),
+    ],
     install_requires=[
         'msgpack-python',
         'uvloop',

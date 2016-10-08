@@ -127,6 +127,8 @@ async def serve(reader, writer):
             req = await conn.recvall(_timeout)
         except asyncio.TimeoutError as te:
             conn.reader.set_exception(te)
+        except IOError as ie:
+            break
         except Exception as e:
             conn.reader.set_exception(e)
             raise e
