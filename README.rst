@@ -103,4 +103,3 @@ Documentation
 -------------
 
 Documentation is available at http://aiorpc.readthedocs.org/.
-(Since readthedocs don't support Python 3.5 yet, this page is unavailable now.)
