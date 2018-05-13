@@ -155,7 +155,7 @@ async def serve(reader, writer):
             ret = method.__call__(*args)
             if asyncio.iscoroutine(ret):
                 _logger.debug("start to wait_for")
-                ret = asyncio.wait_for(ret, _timeout)
+                ret = await asyncio.wait_for(ret, _timeout)
             _logger.debug('calling {} completed. result: {}'.format(str(method), str(ret)))
         except Exception as e:
             await _send_error(conn, str(e), msg_id)
