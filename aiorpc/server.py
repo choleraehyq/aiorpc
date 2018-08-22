@@ -32,8 +32,9 @@ def register(name, f):
     global _methods
     if not hasattr(f, "__call__"):
         raise MethodRegisteredError("{} is not a callable object".format(f.__name__))
-    if _methods.get(name) is not None:
+    if name in _methods:
         raise MethodRegisteredError("Name {} has already been used".format(name))
+ 
     _methods[name] = f
 
 
@@ -69,10 +70,11 @@ def set_timeout(timeout):
     _timeout = timeout
 
 async def _send_error(conn, error, msg_id):
-    global _pack_encoding, _pack_params
     response = (MSGPACKRPC_RESPONSE, msg_id, error, None)
     try:
-        await conn.sendall(msgpack.packb(response, encoding=_pack_encoding, **_pack_params), _timeout)
+        await conn.sendall(msgpack.packb(response, encoding=_pack_encoding,
+                                         **_pack_params),
+                           _timeout)
     except asyncio.TimeoutError as te:
         _logger.error("Timeout when _send_error {} to {}".format(
             error, conn.writer.get_extra_info('peername')))
@@ -100,17 +102,17 @@ async def _send_result(conn, result, msg_id):
 
 
 def _parse_request(req):
-    if (len(req) != 4 or req[0] != MSGPACKRPC_REQUEST):
+    if len(req) != 4 or req[0] != MSGPACKRPC_REQUEST:
         raise RPCProtocolError('Invalid protocol')
 
-    (_, msg_id, method_name, args) = req
+    _, msg_id, method_name, args = req
 
-    method = _methods.get(method_name, None)
+    method = _methods.get(method_name)
 
-    if method is None:
+    if not method:
         raise MethodNotFoundError("No such method {}".format(method_name))
 
-    return (msg_id, method, args)
+    return msg_id, method, args
 
 async def serve(reader, writer):
     """Serve function.
@@ -121,35 +123,52 @@ async def serve(reader, writer):
 
     conn = Connection(reader, writer,
                       msgpack.Unpacker(encoding=_unpack_encoding, **_unpack_params))
+
     while not conn.is_closed():
         req = None
         try:
             req = await conn.recvall(_timeout)
         except asyncio.TimeoutError as te:
             conn.reader.set_exception(te)
+            
+            # skip the rest of iteration code since we already got an error
+            continue
+            
         except IOError as ie:
             break
         except Exception as e:
             conn.reader.set_exception(e)
             raise e
 
-        if type(req) != tuple:
+        if not isinstance(req, tuple):
             try:
                 await _send_error(conn, "Invalid protocol", -1)
+                
+                # skip the rest of iteration code after sending error
+                continue
+
             except Exception as e:
                 _logger.error("Error when receiving req: {}".format(str(e)))
-                return
+                
+                # Don't stop over a error in sending parse error
+                continue
 
         method = None
         msg_id = None
         args = None
+        
+        # Parse the request
         try:
             _logger.debug('parsing req: {}'.format(str(req)))
-            (msg_id, method, args) = _parse_request(req)
+            msg_id, method, args = _parse_request(req)
             _logger.debug('parsing completed: {}'.format(str(req)))
         except Exception as e:
             _logger.error("Exception {} raised when _parse_request {}".format(str(e), req))
+            
+            # skip the rest of iteration code since we already got an error
+            continue
 
+        # Execute the parsed request
         try:
             _logger.debug('calling method: {}'.format(str(method)))
             ret = method.__call__(*args)
