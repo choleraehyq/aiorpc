@@ -68,6 +68,17 @@ RPC client
     loop.run_until_complete(do(client))
     client.close()
 
+aiorpc client can also be used as an async context manager:
+
+.. code-block:: python
+
+    async def do():
+        async with RPCClient('127.0.0.1', 6000) as client:
+            ret = await client.call('echo', 'message')
+            print("{}\n".format(ret))
+
+
+
 Performance
 -----------
 

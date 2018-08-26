@@ -45,6 +45,7 @@ def msgpack_init(**kwargs):
     :param kwargs: See http://pythonhosted.org/msgpack-python/api.html
             default:
             pack_encoding='utf-8'
+            pack_params=dict()
             unpack_encoding='utf-8'
             unpack_params=dict(use_list=False)
     :return: None

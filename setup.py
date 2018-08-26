@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='aiorpc',
-    version='0.1.3',
+    version='0.1.4',
     description='A fast RPC library based on asyncio and MessagePack',
     long_description=open('README.rst').read(),
     author='Cholerae Hu',
