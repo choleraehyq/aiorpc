@@ -112,6 +112,7 @@ def _parse_request(req):
 
     return (msg_id, method, args)
 
+
 async def serve(reader, writer):
     """Serve function.
     Don't use this outside asyncio.start_server.
@@ -119,14 +120,26 @@ async def serve(reader, writer):
     global _unpack_encoding, _unpack_params
     _logger.debug('enter serve: {}'.format(writer.get_extra_info('peername')))
 
-    conn = Connection(reader, writer,
-                      msgpack.Unpacker(encoding=_unpack_encoding, **_unpack_params))
+    conn = Connection(reader, writer, msgpack.Unpacker(encoding=_unpack_encoding, **_unpack_params))
+
+    # Allow the server to close the connection after a period of not receiving any data.
+    backoff_count = 10
+    backoff_n = 0
+
     while not conn.is_closed():
         req = None
         try:
             req = await conn.recvall(_timeout)
         except asyncio.TimeoutError as te:
+            if backoff_count - 1 > backoff_n > 3:
+                _logger.debug("Waiting for client data. Tick {}/{}".format(backoff_n, backoff_count))
+                await asyncio.sleep(0.1 * backoff_n)
+            if backoff_n > backoff_count:
+                _logger.warning("Client didn't close the connection quick enough. Closing...")
+                conn.close()
+            backoff_n += 1
             conn.reader.set_exception(te)
+            continue
         except IOError as ie:
             break
         except Exception as e:
