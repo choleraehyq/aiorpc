@@ -6,8 +6,8 @@ import asyncio
 from nose.tools import *
 import uvloop
 
-from aiorpc import RPCClient, register, serve
-from aiorpc.exceptions import RPCError
+from aiorpc import RPCClient, register, serve, register_class
+from aiorpc.exceptions import RPCError, EnhancedRPCError
 
 HOST = 'localhost'
 PORT = 6000
@@ -23,7 +23,13 @@ def setup_module():
 def teardown_module():
     print("teardown")
     server.close()
-    loop.run_until_complete(server.wait_closed())
+    loop.stop()
+    #loop.run_until_complete(server.wait_closed())
+
+
+class my_class:
+    def echo(self, msg):
+        return msg
 
 
 def echo(msg):
@@ -46,23 +52,23 @@ def set_up_server():
     register('echo', echo)
     register('echo_delayed', echo_delayed)
     register('raise_error', raise_error)
+    register_class(my_class)
     coro = asyncio.start_server(serve, HOST, PORT)
     server = loop.run_until_complete(coro)
 
-
+# Test basic RPC Call
 def test_call():
     async def _test_call():
         client = RPCClient(HOST, PORT)
-
         ret = await client.call('echo', 'message')
-        eq_('message', ret)
 
-        ret = await client.call('echo', 'message' * 100)
-        eq_('message' * 100, ret)
+        eq_('message', ret)
         client.close()
+
     loop.run_until_complete(_test_call())
 
 
+# Test server side exception handling
 @raises(RPCError)
 def test_call_server_side_exception():
     async def _test_call_server_side_exception():
@@ -70,15 +76,18 @@ def test_call_server_side_exception():
 
         try:
             ret = await client.call('raise_error')
-        except RPCError as e:
-            eq_('error msg', str(e))
-            raise
+        except EnhancedRPCError as e:
+            client.close()
+            eq_(e.parent, 'Exception')
+            eq_('error msg', e.message)
+            eq_('Exception: error msg', str(e))
+            raise RPCError
 
         eq_('message', ret)
-        client.close()
     loop.run_until_complete(_test_call_server_side_exception())
 
 
+# Test socket timeouts
 @raises(asyncio.TimeoutError)
 def test_call_socket_timeout():
     async def _test_call_socket_timeout():
@@ -87,3 +96,32 @@ def test_call_socket_timeout():
         await client.call('echo_delayed', 'message', 10)
         client.close()
     loop.run_until_complete(_test_call_socket_timeout())
+
+
+# Test call once
+def test_call_once():
+    async def _test_call():
+        client = RPCClient(HOST, PORT)
+        ret = await client.call_once('echo', 'message')
+
+        eq_('message', ret)
+        eq_(client._conn.is_closed(), True)
+
+        # Make sure we can make another call after we do a call_once
+        ret = await client.call_once('echo', 'message again')
+
+        eq_('message again', ret)
+
+    loop.run_until_complete(_test_call())
+
+
+# Test class method
+def test_class_call():
+    async def _test_class_call():
+        client = RPCClient(HOST, PORT)
+        ret = await client.call('my_class.echo', 'message')
+
+        eq_('message', ret)
+        client.close()
+
+    loop.run_until_complete(_test_class_call())
