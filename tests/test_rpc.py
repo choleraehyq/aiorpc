@@ -63,6 +63,14 @@ def test_call():
     loop.run_until_complete(_test_call())
 
 
+def test_context_manager():
+    async def _test_context_manager():
+        async with RPCClient(HOST, PORT) as client:
+            ret = await client.call('echo', 'message')
+            eq_('message', ret)
+    loop.run_until_complete(_test_context_manager())
+
+
 @raises(RPCError)
 def test_call_server_side_exception():
     async def _test_call_server_side_exception():

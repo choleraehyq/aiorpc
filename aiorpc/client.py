@@ -55,7 +55,17 @@ class RPCClient:
         return self._host, self._port
 
     def close(self):
-        self._conn.close()
+        try:
+            self._conn.close()
+        except AttributeError:
+            pass
+
+    async def _open_connection(self):
+        _logger.debug("connect to {}:{}...".format(self._host, self._port))
+        reader, writer = await asyncio.open_connection(self._host, self._port, loop=self._loop)
+        self._conn = Connection(reader, writer,
+                                msgpack.Unpacker(encoding=self._unpack_encoding, **self._unpack_params))
+        _logger.debug("Connection to {}:{} established".format(self._host, self._port))
 
     async def call(self, method, *args):
         """Calls a RPC method.
@@ -67,12 +77,8 @@ class RPCClient:
         _logger.debug('creating request')
         req = self._create_request(method, args)
 
-        if self._conn is None:
-            _logger.debug("connect to {}:{}...".format(self._host, self._port))
-            reader, writer = await asyncio.open_connection(self._host, self._port, loop=self._loop)
-            self._conn = Connection(reader, writer,
-                                    msgpack.Unpacker(encoding=self._unpack_encoding, **self._unpack_params))
-            _logger.debug("Connection to {}:{} established".format(self._host, self._port))
+        if self._conn is None or self._conn.is_closed():
+            await self._open_connection()
 
         try:
             _logger.debug('Sending req: {}'.format(req))
@@ -126,3 +132,12 @@ class RPCClient:
             raise RPCError(str(error))
 
         return result
+
+    async def __aenter__(self):
+        await self._open_connection()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self._conn and not self._conn.is_closed():
+            logging.debug('Closing connection from context manager')
+            self.close()
