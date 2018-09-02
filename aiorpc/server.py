@@ -53,7 +53,6 @@ def register_class(cls):
     _class_methods[name] = cls()
 
 
-def msgpack_init(**kwargs):
     """Init parameters of msgpack packer and unpacker.
     Usage:
         >>> msgpack_init(pack_encoding='utf-8')
@@ -138,15 +137,10 @@ async def serve(reader, writer):
     """Serve function.
     Don't use this outside asyncio.start_server.
     """
-    global _unpack_encoding, _unpack_params, _middleware
+    global _unpack_encoding, _unpack_params
     _logger.debug('enter serve: {}'.format(writer.get_extra_info('peername')))
 
     conn = Connection(reader, writer, msgpack.Unpacker(encoding=_unpack_encoding, **_unpack_params))
-
-    # Allow the server to close the connection after a period of not receiving any data.
-    backoff_chunk = 0.05
-    backoff_ticks = _timeout // backoff_chunk  # divide the timeout into 2ms chunks
-    backoff_n = 0
 
     while not conn.is_closed():
         req = None
