@@ -53,10 +53,10 @@ def register_class(cls):
     _class_methods[name] = cls()
 
 
+def msgpack_init(**kwargs):
     """Init parameters of msgpack packer and unpacker.
     Usage:
         >>> msgpack_init(pack_encoding='utf-8')
-
     :param kwargs: See http://pythonhosted.org/msgpack-python/api.html
             default:
             pack_encoding='utf-8'
