@@ -86,8 +86,8 @@ def set_timeout(timeout):
     
 async def _send_error(conn, exception, error, msg_id):
     response = (MSGPACKRPC_RESPONSE, msg_id, (exception, error), None)
-        await conn.sendall(msgpack.packb(response, encoding=_pack_encoding,
-                                         **_pack_params),
+    try:
+        await conn.sendall(msgpack.packb(response, encoding=_pack_encoding, **_pack_params),
                            _timeout)
     except asyncio.TimeoutError as te:
         _logger.error("Timeout when _send_error {} to {}".format(
