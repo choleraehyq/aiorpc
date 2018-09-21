@@ -36,7 +36,6 @@ def register(name, f):
         raise MethodRegisteredError("{} is not a callable object".format(f.__name__))
     if name in _methods:
         raise MethodRegisteredError("Name {} has already been used".format(name))
-
     _methods[name] = f
 
 
@@ -83,12 +82,13 @@ def set_timeout(timeout):
     """
     global _timeout
     _timeout = timeout
-
-
+    
+    
 async def _send_error(conn, exception, error, msg_id):
     response = (MSGPACKRPC_RESPONSE, msg_id, (exception, error), None)
-    try:
-        await conn.sendall(msgpack.packb(response, encoding=_pack_encoding, **_pack_params),  _timeout)
+        await conn.sendall(msgpack.packb(response, encoding=_pack_encoding,
+                                         **_pack_params),
+                           _timeout)
     except asyncio.TimeoutError as te:
         _logger.error("Timeout when _send_error {} to {}".format(
             error, conn.writer.get_extra_info('peername')))
@@ -120,7 +120,7 @@ def _parse_request(req):
         raise RPCProtocolError('Invalid protocol')
 
     _, msg_id, method_name, args = req
-
+    
     _method_soup = method_name.split('.')
     if len(_method_soup) == 1:
         method = _methods.get(method_name)
@@ -140,7 +140,8 @@ async def serve(reader, writer):
     global _unpack_encoding, _unpack_params
     _logger.debug('enter serve: {}'.format(writer.get_extra_info('peername')))
 
-    conn = Connection(reader, writer, msgpack.Unpacker(encoding=_unpack_encoding, **_unpack_params))
+    conn = Connection(reader, writer,
+                      msgpack.Unpacker(encoding=_unpack_encoding, **_unpack_params))
 
     while not conn.is_closed():
         req = None
@@ -160,31 +161,24 @@ async def serve(reader, writer):
         if not isinstance(req, tuple):
             try:
                 await _send_error(conn, "Invalid protocol", -1)
-
                 # skip the rest of iteration code after sending error
                 continue
 
             except Exception as e:
                 _logger.error("Error when receiving req: {}".format(str(e)))
 
-                # Don't stop over a error in sending parse error
-                continue
-
-        req_start = datetime.datetime.now()
+                req_start = datetime.datetime.now()
 
         method = None
         msg_id = None
         args = None
-        method_name = None
-
-        # Parse the request
         try:
             _logger.debug('parsing req: {}'.format(str(req)))
             msg_id, method, args, method_name = _parse_request(req)
             _logger.debug('parsing completed: {}'.format(str(req)))
         except Exception as e:
             _logger.error("Exception {} raised when _parse_request {}".format(str(e), req))
-
+            
             # skip the rest of iteration code since we already got an error
             continue
 
