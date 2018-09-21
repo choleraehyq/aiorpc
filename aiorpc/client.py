@@ -6,7 +6,7 @@ import logging
 from aiorpc.connection import Connection
 from aiorpc.log import rootLogger
 from aiorpc.constants import MSGPACKRPC_RESPONSE, MSGPACKRPC_REQUEST
-from aiorpc.exceptions import RPCProtocolError, RPCError
+from aiorpc.exceptions import RPCProtocolError, RPCError, EnhancedRPCError
 
 __all__ = ['RPCClient']
 
@@ -67,11 +67,12 @@ class RPCClient:
                                 msgpack.Unpacker(encoding=self._unpack_encoding, **self._unpack_params))
         _logger.debug("Connection to {}:{} established".format(self._host, self._port))
 
-    async def call(self, method, *args):
+    async def call(self, method, *args, _close=False):
         """Calls a RPC method.
 
         :param str method: Method name.
         :param args: Method arguments.
+        :param _close: Close the connection at the end of the request. Defaults to false
         """
 
         _logger.debug('creating request')
@@ -110,7 +111,19 @@ class RPCClient:
             logging.debug('Protocol error, received unexpected data: {}'.format(response))
             raise RPCProtocolError('Invalid protocol')
 
+        if _close:
+            self.close()
+
         return self._parse_response(response)
+
+    async def call_once(self, method, *args):
+        """Call an RPC Method, then close the connection
+
+        :param str method: Method name.
+        :param args: Method arguments.
+        :param _close: Close the connection at the end of the request. Defaults to false
+        """
+        return await self.call(method, *args, _close=True)
 
     def _create_request(self, method, args):
         self._msg_id += 1
@@ -128,8 +141,10 @@ class RPCClient:
         if msg_id != self._msg_id:
             raise RPCError('Invalid Message ID')
 
-        if error:
-            raise RPCError(str(error))
+        if error and len(error) == 2:
+            raise EnhancedRPCError(*error)
+        elif error:
+            raise RPCError(error)
 
         return result
 
