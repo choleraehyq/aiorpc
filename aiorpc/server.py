@@ -82,8 +82,8 @@ def set_timeout(timeout):
     """
     global _timeout
     _timeout = timeout
-    
-    
+
+
 async def _send_error(conn, exception, error, msg_id):
     response = (MSGPACKRPC_RESPONSE, msg_id, (exception, error), None)
     try:
@@ -120,7 +120,7 @@ def _parse_request(req):
         raise RPCProtocolError('Invalid protocol')
 
     _, msg_id, method_name, args = req
-    
+
     _method_soup = method_name.split('.')
     if len(_method_soup) == 1:
         method = _methods.get(method_name)
@@ -167,8 +167,7 @@ async def serve(reader, writer):
             except Exception as e:
                 _logger.error("Error when receiving req: {}".format(str(e)))
 
-                req_start = datetime.datetime.now()
-
+        req_start = datetime.datetime.now()
         method = None
         msg_id = None
         args = None
@@ -178,7 +177,7 @@ async def serve(reader, writer):
             _logger.debug('parsing completed: {}'.format(str(req)))
         except Exception as e:
             _logger.error("Exception {} raised when _parse_request {}".format(str(e), req))
-            
+
             # skip the rest of iteration code since we already got an error
             continue
 
