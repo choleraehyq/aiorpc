@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import asyncio
-import msgpack
 import logging
+import msgpack
 
 from aiorpc.connection import Connection
 from aiorpc.log import rootLogger
@@ -69,7 +69,8 @@ class RPCClient:
         else:
             reader, writer = await asyncio.open_unix_connection(self._path, loop=self._loop)
         self._conn = Connection(reader, writer,
-                                msgpack.Unpacker(encoding=self._unpack_encoding, **self._unpack_params))
+                                msgpack.Unpacker(encoding=self._unpack_encoding,
+                                                 **self._unpack_params))
         _logger.debug("Connection to {}:{} established".format(*self.getpeername()))
 
     async def call(self, method, *args, _close=False):
@@ -112,7 +113,7 @@ class RPCClient:
         if response is None:
             raise IOError("Connection closed")
 
-        if type(response) != tuple:
+        if not isinstance(response, tuple):
             logging.debug('Protocol error, received unexpected data: %r', response)
             raise RPCProtocolError('Invalid protocol')
 
