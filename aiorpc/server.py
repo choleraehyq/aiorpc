@@ -46,7 +46,7 @@ def register_class(cls):
     :return:
     """
     name = cls.__name__
-    _logger.info("Loaded class `{0}`".format(name))
+    _logger.info("Loaded class `%s`", name)
     if name in _class_methods:
         raise MethodRegisteredError("Class {} has already been loaded".format(name))
     _class_methods[name] = cls()
@@ -90,12 +90,13 @@ async def _send_error(conn, exception, error, msg_id):
         await conn.sendall(msgpack.packb(response, encoding=_pack_encoding, **_pack_params),
                            _timeout)
     except asyncio.TimeoutError as te:
-        _logger.error("Timeout when _send_error {} to {}".format(
-            error, conn.writer.get_extra_info('peername')))
+        _logger.error("Timeout when _send_error %s to %s",
+            error, conn.writer.get_extra_info('peername')
+        )
     except Exception as e:
-        _logger.error("Exception {} raised when _send_error {} to {}".format(
-            str(e), error, conn.writer.get_extra_info("peername")
-        ))
+        _logger.error("Exception %s raised when _send_error %s to %s",
+            e, error, conn.writer.get_extra_info("peername")
+        )
 
 
 async def _send_result(conn, result, msg_id):
@@ -107,12 +108,12 @@ async def _send_result(conn, result, msg_id):
         await conn.sendall(ret, _timeout)
         _logger.debug('sendall completed')
     except asyncio.TimeoutError as te:
-        _logger.error("Timeout when _send_result {} to {}".format(
-            str(result), conn.writer.get_extra_info('peername')))
+        _logger.error("Timeout when _send_result %s to %s",
+            result, conn.writer.get_extra_info('peername'))
     except Exception as e:
-        _logger.error("Exception {} raised when _send_result {} to {}".format(
-            str(e), str(result), conn.writer.get_extra_info("peername")
-        ))
+        _logger.error("Exception %s raised when _send_result %s to %s",
+            e, result, conn.writer.get_extra_info("peername")
+        )
 
 
 def _parse_request(req):
@@ -138,7 +139,7 @@ async def serve(reader, writer):
     Don't use this outside asyncio.start_server.
     """
     global _unpack_encoding, _unpack_params
-    _logger.debug('enter serve: {}'.format(writer.get_extra_info('peername')))
+    _logger.debug('enter serve: %s', writer.get_extra_info('peername'))
 
     conn = Connection(reader, writer,
                       msgpack.Unpacker(encoding=_unpack_encoding, **_unpack_params))
@@ -158,45 +159,45 @@ async def serve(reader, writer):
             conn.reader.set_exception(e)
             raise e
 
-        if not isinstance(req, tuple):
+        if not isinstance(req, (tuple, list)):
             try:
-                await _send_error(conn, "Invalid protocol", -1)
+                await _send_error(conn, "Invalid protocol", -1, None)
                 # skip the rest of iteration code after sending error
                 continue
 
             except Exception as e:
-                _logger.error("Error when receiving req: {}".format(str(e)))
+                _logger.error("Error when receiving req: %s", e)
 
         req_start = datetime.datetime.now()
         method = None
         msg_id = None
         args = None
         try:
-            _logger.debug('parsing req: {}'.format(str(req)))
+            _logger.debug('parsing req: %s', req)
             msg_id, method, args, method_name = _parse_request(req)
-            _logger.debug('parsing completed: {}'.format(str(req)))
+            _logger.debug('parsing completed: %s', req)
         except Exception as e:
-            _logger.error("Exception {} raised when _parse_request {}".format(str(e), req))
+            _logger.error("Exception %s raised when _parse_request %s", e, req)
 
             # skip the rest of iteration code since we already got an error
             continue
 
         # Execute the parsed request
         try:
-            _logger.debug('calling method: {}'.format(str(method)))
+            _logger.debug('calling method: %s', method)
             ret = method.__call__(*args)
             if asyncio.iscoroutine(ret):
                 _logger.debug("start to wait_for")
                 ret = await asyncio.wait_for(ret, _timeout)
-            _logger.debug('calling {} completed. result: {}'.format(str(method), str(ret)))
+            _logger.debug('calling %s completed. result: %s', method, ret)
         except Exception as e:
-            _logger.error("Caught Exception in `{0}`. {1}: {2}".format(method_name, type(e).__name__, str(e)))
+            _logger.error("Caught Exception in `%s`. %s: %s", method_name, type(e).__name__, e)
             await _send_error(conn, type(e).__name__, str(e), msg_id)
-            _logger.debug('sending exception {} completed'.format(str(e)))
+            _logger.debug('sending exception %e completed', e)
         else:
-            _logger.debug('sending result: {}'.format(str(ret)))
+            _logger.debug('sending result: %s', ret)
             await _send_result(conn, ret, msg_id)
-            _logger.debug('sending result {} completed'.format(str(ret)))
+            _logger.debug('sending result %s completed', ret)
 
         req_end = datetime.datetime.now()
-        _logger.info("Method `{0}` took {1}ms".format(method_name, (req_end - req_start).microseconds / 1000))
+        _logger.info("Method `%s` took %fms", method_name, (req_end - req_start).microseconds / 1000)

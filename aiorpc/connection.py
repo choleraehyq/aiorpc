@@ -17,14 +17,13 @@ class Connection:
         self.peer = self.writer.get_extra_info('peername')
 
     async def sendall(self, raw_req, timeout):
-        _logger.debug('sending raw_req {} to {}'.format(
-            str(raw_req), self.peer))
+        _logger.debug('sending raw_req %s to %s', raw_req, self.peer)
         self.writer.write(raw_req)
         await asyncio.wait_for(self.writer.drain(), timeout)
-        _logger.debug('sending {} completed'.format(str(raw_req)))
+        _logger.debug('sending %s completed', raw_req)
 
     async def recvall(self, timeout):
-        _logger.debug('entered recvall from {}'.format(self.peer))
+        _logger.debug('entered recvall from %s', self.peer)
         # buffer, line = bytearray(), b''
         # while not line.endswith(b'\r\n'):
         #     _logger.debug('receiving data, timeout: {}'.format(timeout))
@@ -37,7 +36,7 @@ class Connection:
         req = None
         while True:
             data = await asyncio.wait_for(self.reader.read(SOCKET_RECV_SIZE), timeout)
-            _logger.debug('receiving data {} from {}'.format(data, self.peer))
+            _logger.debug('receiving data %s from %s', data, self.peer)
             if not data:
                 raise IOError('Connection to {} closed'.format(self.peer))
             self.unpacker.feed(data)
@@ -46,8 +45,8 @@ class Connection:
                 break
             except StopIteration:
                 continue
-        _logger.debug('received req from {} : {}'.format(self.peer, req))
-        _logger.debug('exiting recvall from {}'.format(self.peer))
+        _logger.debug('received req from %s : %s', self.peer, req)
+        _logger.debug('exiting recvall from %s', self.peer)
         return req
 
     def close(self):

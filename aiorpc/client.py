@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import asyncio
-import msgpack
 import logging
+import msgpack
 
 from aiorpc.connection import Connection
 from aiorpc.log import rootLogger
@@ -25,6 +25,7 @@ class RPCClient:
 
     :param str host: Hostname.
     :param int port: Port number.
+    :param int path: Unix socket path. Either this one or host and port are required.
     :param int timeout: (optional) Socket timeout.
     :param str pack_encoding: (optional) Character encoding used to pack data
         using Messagepack.
@@ -35,11 +36,12 @@ class RPCClient:
         Unpacker.
     """
 
-    def __init__(self, host, port, *, timeout=3, loop=None,
+    def __init__(self, host=None, port=None, path=None, timeout=3, loop=None,
                  pack_encoding='utf-8', unpack_encoding='utf-8',
                  pack_params=None, unpack_params=None):
         self._host = host
         self._port = port
+        self._path = path
         self._timeout = timeout
 
         self._loop = loop
@@ -52,7 +54,7 @@ class RPCClient:
 
     def getpeername(self):
         """Return the address of the remote endpoint."""
-        return self._host, self._port
+        return (self._host, self._port) if self._host else ('unix', self._path)
 
     def close(self):
         try:
@@ -61,11 +63,15 @@ class RPCClient:
             pass
 
     async def _open_connection(self):
-        _logger.debug("connect to {}:{}...".format(self._host, self._port))
-        reader, writer = await asyncio.open_connection(self._host, self._port, loop=self._loop)
+        _logger.debug("connect to %s:%s...", *self.getpeername())
+        if self._host:
+            reader, writer = await asyncio.open_connection(self._host, self._port, loop=self._loop)
+        else:
+            reader, writer = await asyncio.open_unix_connection(self._path, loop=self._loop)
         self._conn = Connection(reader, writer,
-                                msgpack.Unpacker(encoding=self._unpack_encoding, **self._unpack_params))
-        _logger.debug("Connection to {}:{} established".format(self._host, self._port))
+                                msgpack.Unpacker(encoding=self._unpack_encoding,
+                                                 **self._unpack_params))
+        _logger.debug("Connection to %s:%s established", *self.getpeername())
 
     async def call(self, method, *args, _close=False):
         """Calls a RPC method.
@@ -82,11 +88,11 @@ class RPCClient:
             await self._open_connection()
 
         try:
-            _logger.debug('Sending req: {}'.format(req))
+            _logger.debug('Sending req: %s', req)
             await self._conn.sendall(req, self._timeout)
             _logger.debug('Sending complete')
         except asyncio.TimeoutError as te:
-            _logger.error("Write request to {}:{} timeout".format(self._host, self._port))
+            _logger.error("Write request to %s:%s timeout", *self.getpeername())
             raise te
         except Exception as e:
             raise e
@@ -97,7 +103,7 @@ class RPCClient:
             response = await self._conn.recvall(self._timeout)
             _logger.debug('receiving result completed')
         except asyncio.TimeoutError as te:
-            _logger.error("Read request to {}:{} timeout".format(self._host, self._port))
+            _logger.error("Read request to %s:%s timeout", *self.getpeername())
             self._conn.reader.set_exception(te)
             raise te
         except Exception as e:
@@ -107,8 +113,8 @@ class RPCClient:
         if response is None:
             raise IOError("Connection closed")
 
-        if type(response) != tuple:
-            logging.debug('Protocol error, received unexpected data: {}'.format(response))
+        if not isinstance(response, tuple):
+            logging.debug('Protocol error, received unexpected data: %r', response)
             raise RPCProtocolError('Invalid protocol')
 
         if _close:
