@@ -160,7 +160,7 @@ async def serve(reader, writer):
 
         if not isinstance(req, (tuple, list)):
             try:
-                await _send_error(conn, "Invalid protocol", -1)
+                await _send_error(conn, "Invalid protocol", -1, None)
                 # skip the rest of iteration code after sending error
                 continue
 
