@@ -158,7 +158,7 @@ async def serve(reader, writer):
             conn.reader.set_exception(e)
             raise e
 
-        if not isinstance(req, tuple):
+        if not isinstance(req, (tuple, list)):
             try:
                 await _send_error(conn, "Invalid protocol", -1)
                 # skip the rest of iteration code after sending error
