@@ -9,7 +9,7 @@ aiorpc
 
 aiorpc is a lightweight asynchronous RPC library. It enables you to easily build a distributed server-side system by writing a small amount of code. It is built on top of `asyncio <https://docs.python.org/3/library/asyncio.html/>`_ and `MessagePack <http://msgpack.org/>`_.
 
-**Note aiorpc is under development, should not should be considered to have a stable API.**
+**Note aiorpc is under development, should not be considered to have a stable API.**
 
 Installation
 ------------
