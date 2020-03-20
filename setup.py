@@ -2,16 +2,20 @@
 
 from setuptools import setup, find_packages
 
+with open("README.rst", "r") as fh:
+    long_description = fh.read()
+
 setup(
     name='aiorpc',
     version='0.1.4',
     description='A fast RPC library based on asyncio and MessagePack',
-    long_description=open('README.rst').read(),
+    long_description_content_type='text/x-rst',
+    long_description=long_description,
     author='Cholerae Hu',
     author_email='choleraehyq@gmail.com',
     url='http://github.com/choleraehyq/aiorpc',
     packages=find_packages(),
-    license=open('LICENSE').read(),
+    license='WTFPL',
     include_package_data=True,
     keywords=['rpc', 'msgpack', 'messagepack', 'msgpackrpc', 'messagepackrpc',
               'asyncio'],
