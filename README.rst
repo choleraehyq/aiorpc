@@ -28,7 +28,7 @@ RPC server
 
 .. code-block:: python
 
-    from aiorpc import register, serve
+    from aiorpc import RPCServer
 
     import asyncio
     import uvloop
@@ -37,10 +37,11 @@ RPC server
     def echo(msg):
         return msg
 
+    rpc_server = RPCServer()
     loop = uvloop.new_event_loop()
     asyncio.set_event_loop(loop)
-    register("echo", echo)
-    coro = asyncio.start_server(serve, '127.0.0.1', 6000, loop=loop)
+    rpc_server.register("echo", echo)
+    coro = asyncio.start_server(rpc_server.serve, '127.0.0.1', 6000, loop=loop)
     server = loop.run_until_complete(coro)
 
     try:
