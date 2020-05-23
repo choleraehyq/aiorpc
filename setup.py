@@ -7,7 +7,7 @@ with open("README.rst", "r") as fh:
 
 setup(
     name='aiorpc',
-    version='0.1.4',
+    version='0.1.5',
     description='A fast RPC library based on asyncio and MessagePack',
     long_description_content_type='text/x-rst',
     long_description=long_description,

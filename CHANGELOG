@@ -1,0 +1,6 @@
+v0.1.5
+- Support multiple servers at once (#18)
+- migrate msgpack-python to msgpack package (#20)
+- increment uvloop version to 0.14.0 from 0.11.0
+- add CHANGELOG
+- add release tagging
