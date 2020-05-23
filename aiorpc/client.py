@@ -70,6 +70,7 @@ class RPCClient:
             reader, writer = await asyncio.open_unix_connection(self._path, loop=self._loop)
         self._conn = Connection(reader, writer,
                                 msgpack.Unpacker(encoding=self._unpack_encoding,
+                                                 raw=False,
                                                  **self._unpack_params))
         _logger.debug("Connection to %s:%s established", *self.getpeername())
 
