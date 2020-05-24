@@ -1,3 +1,6 @@
+v0.1.6
+- fix setup.py for msgpack package migration
+
 v0.1.5
 - Support multiple servers at once (#18)
 - migrate msgpack-python to msgpack package (#20)
