@@ -28,7 +28,6 @@ setup(
     ],
     install_requires=[
         'msgpack',
-        'uvloop',
     ],
     tests_require=[
         'nose',

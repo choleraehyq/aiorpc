@@ -4,7 +4,6 @@
 import asyncio
 
 from nose.tools import *
-import uvloop
 
 from aiorpc import RPCClient, register, serve, register_class
 from aiorpc.exceptions import RPCError, EnhancedRPCError
@@ -53,7 +52,7 @@ def raise_error():
 def set_up_inet_server():
     global loop, inet_server
     if not loop:
-        loop = uvloop.new_event_loop()
+        loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     coro = asyncio.start_server(serve, HOST, PORT)
     inet_server = loop.run_until_complete(coro)
@@ -61,7 +60,7 @@ def set_up_inet_server():
 def set_up_unix_server():
     global loop, unix_server
     if not loop:
-        loop = uvloop.new_event_loop()
+        loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     coro = asyncio.start_unix_server(serve, PATH)
     unix_server = loop.run_until_complete(coro)
