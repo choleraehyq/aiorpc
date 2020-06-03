@@ -13,9 +13,7 @@ __all__ = ['register', 'msgpack_init', 'set_timeout', 'serve', 'register_class']
 _logger = rootLogger.getChild(__name__)
 _methods = dict()
 _class_methods = dict()
-_pack_encoding = 'utf-8'
 _pack_params = dict()
-_unpack_encoding = 'utf-8'
 _unpack_params = dict(use_list=False)
 _timeout = 3
 
@@ -55,20 +53,15 @@ def register_class(cls):
 def msgpack_init(**kwargs):
     """Init parameters of msgpack packer and unpacker.
     Usage:
-        >>> msgpack_init(pack_encoding='utf-8')
-    :param kwargs: See http://pythonhosted.org/msgpack-python/api.html
+        >>> msgpack_init(unicode_errors='backslashreplace')
+    :param kwargs: See https://msgpack-python.readthedocs.io/en/latest/api.html
             default:
-            pack_encoding='utf-8'
             pack_params=dict()
-            unpack_encoding='utf-8'
             unpack_params=dict(use_list=False)
     :return: None
     """
-    global _pack_encoding, _pack_params, _unpack_encoding, _unpack_params
-    _pack_encoding = kwargs.pop('pack_encoding', 'utf-8')
+    global _pack_params, _unpack_params
     _pack_params = kwargs.pop('pack_params', dict())
-
-    _unpack_encoding = kwargs.pop('unpack_encoding', 'utf-8')
     _unpack_params = kwargs.pop('unpack_params', dict(use_list=False))
 
 
@@ -87,7 +80,7 @@ def set_timeout(timeout):
 async def _send_error(conn, exception, error, msg_id):
     response = (MSGPACKRPC_RESPONSE, msg_id, (exception, error), None)
     try:
-        await conn.sendall(msgpack.packb(response, use_bin_type=False, encoding=_pack_encoding, **_pack_params),
+        await conn.sendall(msgpack.packb(response, use_bin_type=False, **_pack_params),
                            _timeout)
     except asyncio.TimeoutError as te:
         _logger.error("Timeout when _send_error %s to %s",
@@ -104,7 +97,7 @@ async def _send_result(conn, result, msg_id):
     response = (MSGPACKRPC_RESPONSE, msg_id, None, result)
     try:
         _logger.debug('begin to sendall')
-        ret = msgpack.packb(response, use_bin_type=False, encoding=_pack_encoding, **_pack_params)
+        ret = msgpack.packb(response, use_bin_type=False, **_pack_params)
         await conn.sendall(ret, _timeout)
         _logger.debug('sendall completed')
     except asyncio.TimeoutError as te:
@@ -138,11 +131,11 @@ async def serve(reader, writer):
     """Serve function.
     Don't use this outside asyncio.start_server.
     """
-    global _unpack_encoding, _unpack_params
+    global _unpack_params
     _logger.debug('enter serve: %s', writer.get_extra_info('peername'))
 
     conn = Connection(reader, writer,
-                      msgpack.Unpacker(encoding=_unpack_encoding, **_unpack_params))
+                      msgpack.Unpacker(**_unpack_params))
 
     while not conn.is_closed():
         req = None
