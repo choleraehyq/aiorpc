@@ -27,17 +27,12 @@ class RPCClient:
     :param int port: Port number.
     :param int path: Unix socket path. Either this one or host and port are required.
     :param int timeout: (optional) Socket timeout.
-    :param str pack_encoding: (optional) Character encoding used to pack data
-        using Messagepack.
-    :param str unpack_encoding: (optional) Character encoding used to unpack
-        data using Messagepack.
     :param dict pack_params: (optional) Parameters to pass to Messagepack Packer
     :param dict unpack_params: (optional) Parameters to pass to Messagepack
         Unpacker.
     """
 
     def __init__(self, host=None, port=None, path=None, timeout=3, loop=None,
-                 pack_encoding='utf-8', unpack_encoding='utf-8',
                  pack_params=None, unpack_params=None):
         self._host = host
         self._port = port
@@ -47,9 +42,7 @@ class RPCClient:
         self._loop = loop
         self._conn = None
         self._msg_id = 0
-        self._pack_encoding = pack_encoding
         self._pack_params = pack_params or dict()
-        self._unpack_encoding = unpack_encoding
         self._unpack_params = unpack_params or dict(use_list=False)
 
     def getpeername(self):
@@ -69,8 +62,7 @@ class RPCClient:
         else:
             reader, writer = await asyncio.open_unix_connection(self._path, loop=self._loop)
         self._conn = Connection(reader, writer,
-                                msgpack.Unpacker(encoding=self._unpack_encoding,
-                                                 raw=False,
+                                msgpack.Unpacker(raw=False,
                                                  **self._unpack_params))
         _logger.debug("Connection to %s:%s established", *self.getpeername())
 
@@ -137,7 +129,7 @@ class RPCClient:
 
         req = (MSGPACKRPC_REQUEST, self._msg_id, method, args)
 
-        return msgpack.packb(req, encoding=self._pack_encoding, **self._pack_params)
+        return msgpack.packb(req, **self._pack_params)
 
     def _parse_response(self, response):
         if (len(response) != 4 or response[0] != MSGPACKRPC_RESPONSE):
