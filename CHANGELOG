@@ -1,3 +1,6 @@
+v0.1.7
+- fix issues raised in v0.1.5 (#22) Thanks @nedsociety
+
 v0.1.6
 - fix setup.py for msgpack package migration
 
