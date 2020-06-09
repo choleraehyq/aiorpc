@@ -91,7 +91,8 @@ aiorpc with `uvloop <https://github.com/MagicStack/uvloop>`_ significantly outpe
 
 .. code-block:: bash
 
-    % python benchmarks/benchmark_aiorpc.py
+    % pip install uvloop
+    % python benchmarks/benchmark_aiorpc_inet.py
     call: 2236 qps
 
 
