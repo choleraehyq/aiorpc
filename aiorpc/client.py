@@ -44,6 +44,7 @@ class RPCClient:
         self._msg_id = 0
         self._pack_params = pack_params or dict()
         self._unpack_params = unpack_params or dict(use_list=False)
+        self._msg_id_response_future_dict = {}
 
     def getpeername(self):
         """Return the address of the remote endpoint."""
@@ -66,16 +67,15 @@ class RPCClient:
                                                  **self._unpack_params))
         _logger.debug("Connection to %s:%s established", *self.getpeername())
 
-    async def call(self, method, *args, _close=False):
-        """Calls a RPC method.
+    async def call_nowait(self, method, *args):
+        """Calls a RPC method without waiting for the response.
 
         :param str method: Method name.
         :param args: Method arguments.
-        :param _close: Close the connection at the end of the request. Defaults to false
         """
 
         _logger.debug('creating request')
-        req = self._create_request(method, args)
+        req, msg_id = self._create_request(method, args)
 
         if self._conn is None or self._conn.is_closed():
             await self._open_connection()
@@ -90,6 +90,11 @@ class RPCClient:
         except Exception as e:
             raise e
 
+        self._msg_id_response_future_dict[msg_id] = asyncio.get_running_loop().create_future()
+
+        return msg_id
+
+    async def _get_single_response(self):
         response = None
         try:
             _logger.debug('receiving result from server')
@@ -110,10 +115,31 @@ class RPCClient:
             logging.debug('Protocol error, received unexpected data: %r', response)
             raise RPCProtocolError('Invalid protocol')
 
-        if _close:
-            self.close()
+        self._parse_response(response)
 
-        return self._parse_response(response)
+    async def wait_response(self, msg_id, close=False):
+        try:
+            future = self._msg_id_response_future_dict[msg_id]
+            while not future.done():
+                await self._get_single_response()
+            result = await self._msg_id_response_future_dict[msg_id]
+        finally:
+            self._msg_id_response_future_dict.pop(msg_id)
+            if close:
+                self.close()
+
+        return result
+
+    async def call(self, method, *args, _close=False):
+        """Calls a RPC method.
+
+        :param str method: Method name.
+        :param args: Method arguments.
+        :param _close: Close the connection at the end of the request. Defaults to false
+        """
+
+        msg_id = await self.call_nowait(method, *args)
+        return await self.wait_response(msg_id, _close)
 
     async def call_once(self, method, *args):
         """Call an RPC Method, then close the connection
@@ -129,7 +155,7 @@ class RPCClient:
 
         req = (MSGPACKRPC_REQUEST, self._msg_id, method, args)
 
-        return msgpack.packb(req, **self._pack_params)
+        return msgpack.packb(req, **self._pack_params), self._msg_id
 
     def _parse_response(self, response):
         if (len(response) != 4 or response[0] != MSGPACKRPC_RESPONSE):
@@ -137,15 +163,13 @@ class RPCClient:
 
         (_, msg_id, error, result) = response
 
-        if msg_id != self._msg_id:
-            raise RPCError('Invalid Message ID')
-
+        future = self._msg_id_response_future_dict[msg_id]
         if error and len(error) == 2:
-            raise EnhancedRPCError(*error)
+            future.set_exception(EnhancedRPCError(*error))
         elif error:
-            raise RPCError(error)
-
-        return result
+            future.set_exception(RPCError(error))
+        else:
+            future.set_result(result)
 
     async def __aenter__(self):
         await self._open_connection()
