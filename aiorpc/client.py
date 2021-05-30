@@ -45,6 +45,7 @@ class RPCClient:
         self._pack_params = pack_params or dict()
         self._unpack_params = unpack_params or dict(use_list=False)
         self._msg_id_response_future_dict = {}
+        self._running = False
 
     def getpeername(self):
         """Return the address of the remote endpoint."""
@@ -67,33 +68,6 @@ class RPCClient:
                                                  **self._unpack_params))
         _logger.debug("Connection to %s:%s established", *self.getpeername())
 
-    async def call_nowait(self, method, *args):
-        """Calls a RPC method without waiting for the response.
-
-        :param str method: Method name.
-        :param args: Method arguments.
-        """
-
-        _logger.debug('creating request')
-        req, msg_id = self._create_request(method, args)
-
-        if self._conn is None or self._conn.is_closed():
-            await self._open_connection()
-
-        try:
-            _logger.debug('Sending req: %s', req)
-            await self._conn.sendall(req, self._timeout)
-            _logger.debug('Sending complete')
-        except asyncio.TimeoutError as te:
-            _logger.error("Write request to %s:%s timeout", *self.getpeername())
-            raise te
-        except Exception as e:
-            raise e
-
-        self._msg_id_response_future_dict[msg_id] = asyncio.get_running_loop().create_future()
-
-        return msg_id
-
     async def _get_single_response(self):
         response = None
         try:
@@ -109,7 +83,7 @@ class RPCClient:
             raise e
 
         if response is None:
-            raise IOError("Connection closed")
+            return
 
         if not isinstance(response, tuple):
             logging.debug('Protocol error, received unexpected data: %r', response)
@@ -117,11 +91,51 @@ class RPCClient:
 
         self._parse_response(response)
 
-    async def wait_response(self, msg_id, close=False):
+    async def _run(self):
         try:
-            future = self._msg_id_response_future_dict[msg_id]
-            while not future.done():
-                await self._get_single_response()
+            if not self._running:
+                self._running = True
+
+                while True:
+                    await self._get_single_response()
+        finally:
+            self._running = False
+
+    def _run_once(self):
+        if not self._running:
+            asyncio.create_task(self._run())
+
+    async def _call(self, method, *args):
+        """Calls a RPC method without waiting for the response.
+
+        :param str method: Method name.
+        :param args: Method arguments.
+        """
+
+        if self._conn is None or self._conn.is_closed():
+            await self._open_connection()
+
+        self._run_once()
+
+        _logger.debug('creating request')
+        req, msg_id = self._create_request(method, args)
+
+        try:
+            _logger.debug('Sending req: %s', req)
+            await self._conn.sendall(req, self._timeout)
+            _logger.debug('Sending complete')
+        except asyncio.TimeoutError as te:
+            _logger.error("Write request to %s:%s timeout", *self.getpeername())
+            raise te
+        except Exception as e:
+            raise e
+
+        self._msg_id_response_future_dict[msg_id] = asyncio.get_running_loop().create_future()
+
+        return msg_id
+
+    async def _wait_response(self, msg_id, close=False):
+        try:
             result = await self._msg_id_response_future_dict[msg_id]
         finally:
             self._msg_id_response_future_dict.pop(msg_id)
@@ -138,8 +152,8 @@ class RPCClient:
         :param _close: Close the connection at the end of the request. Defaults to false
         """
 
-        msg_id = await self.call_nowait(method, *args)
-        return await self.wait_response(msg_id, _close)
+        msg_id = await self._call(method, *args)
+        return await self._wait_response(msg_id, _close)
 
     async def call_once(self, method, *args):
         """Call an RPC Method, then close the connection
