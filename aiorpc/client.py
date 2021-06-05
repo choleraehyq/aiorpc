@@ -144,6 +144,10 @@ class RPCClient:
 
         return result
 
+    async def async_call(self, method, *args, _close=False):
+        msg_id = await self._call(method, *args)
+        return self._wait_response(msg_id, _close)
+
     async def call(self, method, *args, _close=False):
         """Calls a RPC method.
 
