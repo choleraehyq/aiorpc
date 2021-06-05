@@ -68,11 +68,11 @@ class RPCClient:
                                                  **self._unpack_params))
         _logger.debug("Connection to %s:%s established", *self.getpeername())
 
-    async def _get_single_response(self):
-        response = None
+    async def _get_responses_one_time(self):
+        responses = []
         try:
             _logger.debug('receiving result from server')
-            response = await self._conn.recvall(self._timeout)
+            responses = await self._conn.recvall(self._timeout)
             _logger.debug('receiving result completed')
         except asyncio.TimeoutError as te:
             _logger.error("Read request to %s:%s timeout", *self.getpeername())
@@ -82,14 +82,12 @@ class RPCClient:
             self._conn.reader.set_exception(e)
             raise e
 
-        if response is None:
-            return
+        for response in responses:
+            if not isinstance(response, tuple):
+                logging.debug('Protocol error, received unexpected data: %r', response)
+                raise RPCProtocolError('Invalid protocol')
 
-        if not isinstance(response, tuple):
-            logging.debug('Protocol error, received unexpected data: %r', response)
-            raise RPCProtocolError('Invalid protocol')
-
-        self._parse_response(response)
+            self._parse_response(response)
 
     async def _call(self, method, *args):
         """Calls a RPC method without waiting for the response.
@@ -119,7 +117,7 @@ class RPCClient:
     async def _wait_response(self, msg_id, close=False):
         try:
             while msg_id not in self._msg_id_response_dict:
-                await self._get_single_response()
+                await self._get_responses_one_time()
 
             return self._msg_id_response_dict.pop(msg_id)
         finally:

@@ -33,21 +33,20 @@ class Connection:
         #     _logger.debug('received data {}'.format(line))
         #     buffer.extend(line)
         # _logger.debug('buffer: {}'.format(buffer))
-        req = None
+        reqs = []
         while True:
             data = await asyncio.wait_for(self.reader.read(SOCKET_RECV_SIZE), timeout)
             _logger.debug('receiving data %s from %s', data, self.peer)
             if not data:
                 raise IOError('Connection to {} closed'.format(self.peer))
             self.unpacker.feed(data)
-            try:
-                req = next(self.unpacker)
-                break
-            except StopIteration:
+            reqs = [*self.unpacker]
+            if len(reqs) == 0:
                 continue
-        _logger.debug('received req from %s : %s', self.peer, req)
+            break
+        _logger.debug('received reqs from %s : %s', self.peer, reqs)
         _logger.debug('exiting recvall from %s', self.peer)
-        return req
+        return reqs
 
     def close(self):
         self.reader.feed_eof()
