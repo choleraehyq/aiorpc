@@ -44,7 +44,7 @@ class RPCClient:
         self._msg_id = 0
         self._pack_params = pack_params or dict()
         self._unpack_params = unpack_params or dict(use_list=False)
-        self._msg_id_response_dict = {}
+        self._msg_id_response_future_dict = {}
         self._running = False
 
     def getpeername(self):
@@ -89,6 +89,20 @@ class RPCClient:
 
             self._parse_response(response)
 
+    async def _run(self):
+        try:
+            if not self._running:
+                self._running = True
+
+                while True:
+                    await self._get_responses_one_time()
+        finally:
+            self._running = False
+
+    def _run_once(self):
+        if not self._running:
+            asyncio.create_task(self._run())
+
     async def _call(self, method, *args):
         """Calls a RPC method without waiting for the response.
 
@@ -98,6 +112,8 @@ class RPCClient:
 
         if self._conn is None or self._conn.is_closed():
             await self._open_connection()
+
+        self._run_once()
 
         _logger.debug('creating request')
         req, msg_id = self._create_request(method, args)
@@ -112,17 +128,18 @@ class RPCClient:
         except Exception as e:
             raise e
 
+        self._msg_id_response_future_dict[msg_id] = asyncio.get_running_loop().create_future()
+
         return msg_id
 
     async def _wait_response(self, msg_id, close=False):
         try:
-            while msg_id not in self._msg_id_response_dict:
-                await self._get_responses_one_time()
-
-            return self._msg_id_response_dict.pop(msg_id)
+            result = await self._msg_id_response_future_dict[msg_id]
         finally:
+            self._msg_id_response_future_dict.pop(msg_id)
             if close:
                 self.close()
+        return result
 
     async def async_call(self, method, *args, _close=False):
         msg_id = await self._call(method, *args)
@@ -161,12 +178,13 @@ class RPCClient:
 
         (_, msg_id, error, result) = response
 
+        future = self._msg_id_response_future_dict[msg_id]
         if error and len(error) == 2:
-            raise EnhancedRPCError(*error)
+            future.set_exception(EnhancedRPCError(*error))
         elif error:
-            raise RPCError(error)
+            future.set_exception(RPCError(error))
         else:
-            self._msg_id_response_dict[msg_id] = result
+            future.set_result(result)
 
     async def __aenter__(self):
         await self._open_connection()
