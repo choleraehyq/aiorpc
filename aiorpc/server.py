@@ -138,9 +138,9 @@ async def serve(reader, writer):
                       msgpack.Unpacker(**_unpack_params))
 
     while not conn.is_closed():
-        req = None
+        reqs = []
         try:
-            req = await conn.recvall(_timeout)
+            reqs = await conn.recvall(_timeout)
         except asyncio.TimeoutError as te:
             await asyncio.sleep(3)
             _logger.warning("Client did not send any data before timeout. Closing connection...")
@@ -152,45 +152,46 @@ async def serve(reader, writer):
             conn.reader.set_exception(e)
             raise e
 
-        if not isinstance(req, (tuple, list)):
+        for req in reqs:
+            if not isinstance(req, (tuple, list)):
+                try:
+                    await _send_error(conn, "Invalid protocol", -1, None)
+                    # skip the rest of iteration code after sending error
+                    continue
+
+                except Exception as e:
+                    _logger.error("Error when receiving req: %s", e)
+
+            req_start = datetime.datetime.now()
+            method = None
+            msg_id = None
+            args = None
             try:
-                await _send_error(conn, "Invalid protocol", -1, None)
-                # skip the rest of iteration code after sending error
+                _logger.debug('parsing req: %s', req)
+                msg_id, method, args, method_name = _parse_request(req)
+                _logger.debug('parsing completed: %s', req)
+            except Exception as e:
+                _logger.error("Exception %s raised when _parse_request %s", e, req)
+
+                # skip the rest of iteration code since we already got an error
                 continue
 
+            # Execute the parsed request
+            try:
+                _logger.debug('calling method: %s', method)
+                ret = method.__call__(*args)
+                if asyncio.iscoroutine(ret):
+                    _logger.debug("start to wait_for")
+                    ret = await asyncio.wait_for(ret, _timeout)
+                _logger.debug('calling %s completed. result: %s', method, ret)
             except Exception as e:
-                _logger.error("Error when receiving req: %s", e)
+                _logger.error("Caught Exception in `%s`. %s: %s", method_name, type(e).__name__, e)
+                await _send_error(conn, type(e).__name__, str(e), msg_id)
+                _logger.debug('sending exception %e completed', e)
+            else:
+                _logger.debug('sending result: %s', ret)
+                await _send_result(conn, ret, msg_id)
+                _logger.debug('sending result %s completed', ret)
 
-        req_start = datetime.datetime.now()
-        method = None
-        msg_id = None
-        args = None
-        try:
-            _logger.debug('parsing req: %s', req)
-            msg_id, method, args, method_name = _parse_request(req)
-            _logger.debug('parsing completed: %s', req)
-        except Exception as e:
-            _logger.error("Exception %s raised when _parse_request %s", e, req)
-
-            # skip the rest of iteration code since we already got an error
-            continue
-
-        # Execute the parsed request
-        try:
-            _logger.debug('calling method: %s', method)
-            ret = method.__call__(*args)
-            if asyncio.iscoroutine(ret):
-                _logger.debug("start to wait_for")
-                ret = await asyncio.wait_for(ret, _timeout)
-            _logger.debug('calling %s completed. result: %s', method, ret)
-        except Exception as e:
-            _logger.error("Caught Exception in `%s`. %s: %s", method_name, type(e).__name__, e)
-            await _send_error(conn, type(e).__name__, str(e), msg_id)
-            _logger.debug('sending exception %e completed', e)
-        else:
-            _logger.debug('sending result: %s', ret)
-            await _send_result(conn, ret, msg_id)
-            _logger.debug('sending result %s completed', ret)
-
-        req_end = datetime.datetime.now()
-        _logger.info("Method `%s` took %fms", method_name, (req_end - req_start).microseconds / 1000)
+            req_end = datetime.datetime.now()
+            _logger.info("Method `%s` took %fms", method_name, (req_end - req_start).microseconds / 1000)
