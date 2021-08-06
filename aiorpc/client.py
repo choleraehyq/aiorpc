@@ -95,7 +95,13 @@ class RPCClient:
                 self._running = True
 
                 while True:
-                    await self._get_responses_one_time()
+                    try:
+                        await self._get_responses_one_time()
+                    except OSError as e:
+                        msg = str(e)
+                        if msg.startswith('Connection to') and msg.endswith('closed'):
+                            break
+                        raise
         finally:
             self._running = False
 
