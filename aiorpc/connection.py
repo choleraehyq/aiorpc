@@ -1,11 +1,35 @@
 # -*- coding: utf-8 -*-
 
 import asyncio
+import platform
+import socket
 from aiorpc.log import rootLogger
 from aiorpc.constants import SOCKET_RECV_SIZE
 
+
 __all__ = ['Connection']
 _logger = rootLogger.getChild(__name__)
+
+
+def set_keepalive(sock, after_idle_sec=1, interval_sec=3, max_fails=5):
+    """Set TCP keepalive on an open socket.
+
+    It activates after 1 second (after_idle_sec) of idleness,
+    then sends a keepalive ping once every 3 seconds (interval_sec),
+    and closes the connection after 5 failed ping (max_fails), or 15 seconds
+    """
+    if platform.system() == 'Linux':
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        #  sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, after_idle_sec)
+        #  sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, interval_sec)
+        #  sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, max_fails)
+        #  sock.ioctl(socket.SIO_KEEPALIVE_VALS, (1, after_idle_sec * 1000, interval_sec * 10000))
+    elif platform.system() == 'Darwin':
+        TCP_KEEPALIVE = 0x10
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        sock.setsockopt(socket.IPPROTO_TCP, TCP_KEEPALIVE, interval_sec)
+    elif platform.system() == 'Windows':
+        sock.ioctl(socket.SIO_KEEPALIVE_VALS, (1, after_idle_sec * 1000, interval_sec * 10000))
 
 
 class Connection:
@@ -15,6 +39,10 @@ class Connection:
         self.unpacker = unpacker
         self._is_closed = False
         self.peer = self.writer.get_extra_info('peername')
+
+        if hasattr(socket, 'SO_KEEPALIVE'):
+            sock = self.writer.get_extra_info('socket')
+            set_keepalive(sock)
 
     async def sendall(self, raw_req, timeout):
         _logger.debug('sending raw_req %s to %s', raw_req, self.peer)
