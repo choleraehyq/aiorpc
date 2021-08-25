@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import asyncio
-import socket
 from aiorpc.log import rootLogger
 from aiorpc.constants import SOCKET_RECV_SIZE
-
 
 __all__ = ['Connection']
 _logger = rootLogger.getChild(__name__)

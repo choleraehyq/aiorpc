@@ -144,6 +144,7 @@ async def serve(reader, writer):
         except asyncio.TimeoutError as te:
             await asyncio.sleep(3)
             _logger.warning("Client did not send any data before timeout. Closing connection...")
+            conn.close()
             continue
         except IOError as ie:
             break
