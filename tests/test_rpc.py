@@ -49,6 +49,10 @@ def raise_error():
     raise Exception('error msg')
 
 
+def get_dict():
+    return {1: 2}
+
+
 def set_up_inet_server():
     global loop, inet_server
     if not loop:
@@ -69,6 +73,7 @@ def register_handlers():
     register('echo', echo)
     register('echo_delayed', echo_delayed)
     register('raise_error', raise_error)
+    register('get_dict', get_dict)
     register_class(my_class)
 
 
@@ -194,6 +199,17 @@ def test_unix_call_once():
         ret = await client.call_once('echo', 'message again')
 
         eq_('message again', ret)
+
+    loop.run_until_complete(_test_call())
+
+
+# Somtimes tuple, sometimes list
+def test_response_types():
+    async def _test_call():
+        client = RPCClient(path=PATH, unpack_params={'strict_map_key': False})
+        ret = await client.call_once('get_dict')
+
+        eq_({1: 2}, ret)
 
     loop.run_until_complete(_test_call())
 
