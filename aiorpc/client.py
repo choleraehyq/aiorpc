@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import asyncio
+import collections
 import logging
 import msgpack
 
@@ -83,7 +84,7 @@ class RPCClient:
             raise e
 
         for response in responses:
-            if not isinstance(response, tuple):
+            if not isinstance(response, collections.Iterable):
                 logging.debug('Protocol error, received unexpected data: %r', response)
                 raise RPCProtocolError('Invalid protocol')
 
